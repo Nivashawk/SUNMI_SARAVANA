@@ -1,39 +1,69 @@
-import 'package:sunmi_flutter_plugin_scan/scan_sdk.dart';
+import 'dart:convert';
+import 'package:flutter/services.dart';
 import 'package:sunmi_flutter_plugin_scan/bean/scan_result_bean.dart';
 
 /// Wraps the SUNMI hardware scanner SDK.
-/// The V2 Plus built-in laser scanner is accessed via [ScanSdk].
+///
+/// KEY INSIGHT: The SUNMI SDK's [ScanSdk.startScan()] always does two things
+/// in one call: (1) registers the MethodChannel listener AND (2) invokes the
+/// native 'scanStart' command — which physically fires the laser.
+///
+/// There is no SDK-level API to separate these. So we bypass the SDK for
+/// listener registration and wire the MethodChannel directly:
+///   - On init → register MethodChannel handler only (no laser trigger)
+///   - On button tap → invokeMethod('scanStart') to fire the laser
 class ScannerService {
   static final ScannerService _instance = ScannerService._internal();
   factory ScannerService() => _instance;
   ScannerService._internal();
 
-  Function(String barcode)? _onResult;
+  static const _channel = MethodChannel('flutter_sunmi_scan');
 
-  /// Registers a persistent scan result listener (called once at startup).
-  /// Re-calling this is safe — it updates the callback and re-registers.
+  Function(String barcode)? _onResult;
+  bool _isListening = false;
+
+  /// Registers the scan result listener at startup.
+  /// Does NOT fire the laser — only sets up the MethodChannel handler.
   void startListening(Function(String barcode) onResult) {
     _onResult = onResult;
-    _registerAndTrigger();
-  }
-
-  /// Programmatically fires the laser to initiate a scan.
-  /// Call this whenever the SCAN PRODUCT button is tapped.
-  void triggerScan() {
-    _registerAndTrigger();
-  }
-
-  /// Internal: registers the MethodChannel handler and fires the native scanStart.
-  void _registerAndTrigger() {
-    ScanSdk.instance.startScan(
-      (int code, List<ScanResultBean> results, String? msg) {
-        if (code == 0 && results.isNotEmpty) {
-          final barcode = results.first.VALUE ?? '';
-          if (barcode.isNotEmpty) {
-            _onResult?.call(barcode);
+    if (!_isListening) {
+      _isListening = true;
+      _channel.setMethodCallHandler((call) async {
+        if (call.method == 'scanResult') {
+          final raw = call.arguments as String?;
+          if (raw != null && raw.isNotEmpty) {
+            try {
+              final List<dynamic> jsonList = json.decode(raw);
+              final results = jsonList
+                  .map((item) => ScanResultBean.fromJson(item))
+                  .toList();
+              if (results.isNotEmpty) {
+                final barcode = results.first.VALUE ?? '';
+                if (barcode.isNotEmpty) {
+                  _onResult?.call(barcode);
+                }
+              }
+            } catch (_) {
+              // Ignore malformed scan results
+            }
           }
         }
-      },
-    );
+      });
+    } else {
+      // Update callback if called again
+      _onResult = onResult;
+    }
+  }
+
+  /// Fires the hardware laser to initiate a scan.
+  /// Call this ONLY when the SCAN PRODUCT button is tapped.
+  Future<void> triggerScan() async {
+    try {
+      await _channel.invokeMethod('scanStart');
+    } on PlatformException catch (e) {
+      // ignore — scanner may not be available
+      // ignore: avoid_print
+      print('[ScannerService] triggerScan error: ${e.message}');
+    }
   }
 }

@@ -4,49 +4,50 @@ import '../providers/scan_print_provider.dart';
 
 /// Custom 3×4 numeric keypad widget.
 /// Keys: 1–9, decimal point, 0, and backspace.
+/// Fills all available vertical space via Expanded rows.
 class NumericKeypad extends StatelessWidget {
   const NumericKeypad({super.key});
 
-  static const _keys = [
-    '1', '2', '3',
-    '4', '5', '6',
-    '7', '8', '9',
-    '.', '0', '⌫',
+  static const _rows = [
+    ['1', '2', '3'],
+    ['4', '5', '6'],
+    ['7', '8', '9'],
+    ['.', '0', '⌫'],
   ];
 
   @override
   Widget build(BuildContext context) {
     final provider = context.read<ScanPrintProvider>();
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: GridView.builder(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        itemCount: _keys.length,
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 3,
-          mainAxisSpacing: 10,
-          crossAxisSpacing: 10,
-          childAspectRatio: 1.6,
-        ),
-        itemBuilder: (context, index) {
-          final key = _keys[index];
-          final isBackspace = key == '⌫';
-
-          return _KeyButton(
-            label: key,
-            isBackspace: isBackspace,
-            onTap: () {
-              if (isBackspace) {
-                provider.deleteDigit();
-              } else {
-                provider.appendDigit(key);
-              }
-            },
-          );
-        },
-      ),
+    return Column(
+      children: [
+        for (int r = 0; r < _rows.length; r++) ...[
+          Expanded(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (int c = 0; c < _rows[r].length; c++) ...[
+                  Expanded(
+                    child: _KeyButton(
+                      label: _rows[r][c],
+                      isBackspace: _rows[r][c] == '⌫',
+                      onTap: () {
+                        if (_rows[r][c] == '⌫') {
+                          provider.deleteDigit();
+                        } else {
+                          provider.appendDigit(_rows[r][c]);
+                        }
+                      },
+                    ),
+                  ),
+                  if (c < _rows[r].length - 1) const SizedBox(width: 10),
+                ],
+              ],
+            ),
+          ),
+          if (r < _rows.length - 1) const SizedBox(height: 10),
+        ],
+      ],
     );
   }
 }

@@ -4,7 +4,7 @@ import '../providers/scan_print_provider.dart';
 import '../services/scanner_service.dart';
 import '../services/printer_service.dart';
 import '../widgets/header_bar.dart';
-import '../widgets/product_card.dart';
+import '../widgets/scan_card.dart';
 import '../widgets/length_display.dart';
 import '../widgets/numeric_keypad.dart';
 import '../widgets/generate_print_button.dart';
@@ -48,8 +48,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   /// Called when the SCAN PRODUCT button is tapped.
   /// Fires the hardware laser to initiate a scan.
-  void _onScanTapped() {
-    _scannerService.triggerScan();
+  Future<void> _onScanTapped() async {
+    await _scannerService.triggerScan();
   }
 
   /// Called when Generate & Print button is tapped.
@@ -115,74 +115,52 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF2F2F7),
+      backgroundColor: const Color(0xFFF0F2F5),
       body: SafeArea(
         child: Column(
           children: [
-            // ── Header ──────────────────────────────────────────────────────
+            // ── Header ────────────────────────────────────────────────────
             const HeaderBar(),
-            const SizedBox(height: 1),
-            // Thin divider under header
             Container(height: 1, color: const Color(0xFFE0E0E0)),
 
-            // ── Scrollable body ──────────────────────────────────────────────
-            Expanded(
-              child: SingleChildScrollView(
-                child: Column(
-                  children: [
-                    const SizedBox(height: 16),
+            // ── Combined scan card (idle → scanned) ──────────────────────
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              child: ScanCard(onScanTapped: _onScanTapped),
+            ),
 
-                    // ── Product card ─────────────────────────────────────────
-                    const ProductCard(),
-                    const SizedBox(height: 12),
+            const SizedBox(height: 10),
 
-                    // ── Scan button ──────────────────────────────────────────
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: SizedBox(
-                        width: double.infinity,
-                        height: 56,
-                        child: ElevatedButton.icon(
-                          onPressed: _onScanTapped,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF1A1A2E),
-                            foregroundColor: Colors.white,
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          icon: const Icon(
-                            Icons.qr_code_scanner_rounded,
-                            size: 22,
-                          ),
-                          label: const Text(
-                            'SCAN PRODUCT',
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 1.2,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
+            // ── Length display ─────────────────────────────────────────────
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16),
+              child: LengthDisplay(),
+            ),
 
-                    // ── Length display ───────────────────────────────────────
-                    const LengthDisplay(),
-                    const SizedBox(height: 14),
+            const SizedBox(height: 10),
 
-                    // ── Numeric keypad ───────────────────────────────────────
-                    const NumericKeypad(),
-                    const SizedBox(height: 20),
-
-                    // ── Generate & Print button ──────────────────────────────
-                    GeneratePrintButton(onPressed: _onPrintTapped),
-                    const SizedBox(height: 24),
-                  ],
-                ),
+            // ── Numeric keypad — fills remaining space ─────────────────────
+            const Expanded(
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(16, 0, 16, 12),
+                child: NumericKeypad(),
               ),
+            ),
+
+            // ── Pinned bottom bar: Generate & Print ────────────────────────
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.07),
+                    blurRadius: 12,
+                    offset: const Offset(0, -3),
+                  ),
+                ],
+              ),
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+              child: GeneratePrintButton(onPressed: _onPrintTapped),
             ),
           ],
         ),

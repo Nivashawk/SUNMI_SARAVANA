@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 import 'package:sunmi_flutter_plugin_printer/printer_sdk.dart';
 import 'package:sunmi_flutter_plugin_printer/bean/printer.dart';
 import 'package:sunmi_flutter_plugin_printer/listener/printer_listener.dart';
@@ -8,7 +9,9 @@ import 'package:sunmi_flutter_plugin_printer/style/base_style.dart';
 import 'package:sunmi_flutter_plugin_printer/enum/align.dart' as printer;
 import 'package:sunmi_flutter_plugin_printer/enum/error_level.dart';
 import 'package:sunmi_flutter_plugin_printer/enum/status.dart';
+import 'package:sunmi_flutter_plugin_printer/enum/dividing_line.dart';
 import 'package:sunmi_flutter_plugin_printer/style/text_style.dart';
+
 
 /// Wraps the SUNMI thermal printer SDK.
 ///
@@ -57,7 +60,8 @@ class PrinterService {
   Future<bool> printQR(String data) async {
     if (_printer == null) await initialize();
     final lineApi = _printer?.lineApi;
-    if (lineApi == null) return false;
+    final commandApi = _printer?.commandApi;
+    if (lineApi == null || commandApi == null) return false;
 
     final resultCompleter = Completer<bool>();
 
@@ -75,25 +79,41 @@ class PrinterService {
             .setAlign(printer.Align.CENTER)
             .setDot(9)
             .setErrorLevel(ErrorLevel.H)
-            .setPosY(60), // top margin: 60px gap above the QR
+            .setPosY(60),
       );
 
-      // 4. Bottom margin — print a tall empty space after QR code
+      // 4. Print the value as text below the QR code
       await lineApi.printText(
-        ' ',
-        TextStyle.getStyle().setTextHeightRatio(8),
+        data,
+        TextStyle.getStyle()
+            .setTextSize(24)
+            .enableBold(true),
       );
 
-      // 6. Commit & execute — result fires via PrintResult.onResult
+      // 5. Solid separator line — visual end of receipt
+      await lineApi.printDividingLine(DividingLine.SOLID, 0);
+
+      // 6. Bottom spacer — queued INSIDE the transaction so it is guaranteed
+      //    to print. setTextHeightRatio(6) makes each line ~6x tall.
+      //    3 such lines ≈ 15–20mm of blank paper below the separator.
+      
+      await lineApi.printText(
+          ' ',
+          TextStyle.getStyle().setTextHeightRatio(1),
+        );
+     
+
+      // 7. Commit & execute — result fires via PrintResult.onResult
       await lineApi.printTrans(_AppPrintResult((code, msg) {
         resultCompleter.complete(code == 0);
       }));
 
-      // 7. Disable transaction mode
+      // 8. Disable transaction mode
       await lineApi.enableTransMode(false);
 
-      // 8. Feed paper
+      // 9. autoOut() — advances paper past the print head so the QR is visible.
       await lineApi.autoOut();
+
     } catch (e) {
       await lineApi.enableTransMode(false);
       if (!resultCompleter.isCompleted) resultCompleter.complete(false);

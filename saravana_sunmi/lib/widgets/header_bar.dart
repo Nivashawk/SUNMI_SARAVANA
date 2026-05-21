@@ -88,7 +88,7 @@ class HeaderBar extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           // WiFi icon
-          const Icon(Icons.wifi, size: 20, color: Color(0xFF1A1A2E)),
+          // const Icon(Icons.wifi, size: 20, color: Color(0xFF1A1A2E)),
         ],
       ),
     );
