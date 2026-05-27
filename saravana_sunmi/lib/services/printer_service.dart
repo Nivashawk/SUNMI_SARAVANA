@@ -56,8 +56,13 @@ class PrinterService {
   }
 
   /// Prints [data] encoded as a centred QR code, then feeds paper.
+  /// Optionally prints absolute and total price tags if provided.
   /// Returns true on print success, false on any error.
-  Future<bool> printQR(String data) async {
+  Future<bool> printQR(
+    String data, {
+    double absolutePrice = 0.0,
+    double totalPrice = 0.0,
+  }) async {
     if (_printer == null) await initialize();
     final lineApi = _printer?.lineApi;
     final commandApi = _printer?.commandApi;
@@ -90,18 +95,32 @@ class PrinterService {
             .enableBold(true),
       );
 
-      // 5. Solid separator line — visual end of receipt
-      await lineApi.printDividingLine(DividingLine.SOLID, 0);
+      // 5. If absolutePrice is specified, print the prices in the same line
+      if (absolutePrice > 0.0) {
+        final String priceStr = absolutePrice == absolutePrice.toInt()
+            ? absolutePrice.toInt().toString()
+            : absolutePrice.toStringAsFixed(2);
+        final String totalStr = totalPrice.toStringAsFixed(2);
+        
+        await lineApi.printText(
+          'Price:$priceStr Total Rs.$totalStr',
+          TextStyle.getStyle()
+              .setTextSize(24)
+              .enableBold(true)
+              .setAlign(printer.Align.LEFT),
+        );
+      } else {
+        // Solid separator line — visual end of receipt for standard prints
+        await lineApi.printDividingLine(DividingLine.SOLID, 0);
+      }
 
       // 6. Bottom spacer — queued INSIDE the transaction so it is guaranteed
       //    to print. setTextHeightRatio(6) makes each line ~6x tall.
       //    3 such lines ≈ 15–20mm of blank paper below the separator.
-      
       await lineApi.printText(
-          ' ',
-          TextStyle.getStyle().setTextHeightRatio(1),
-        );
-     
+        ' ',
+        TextStyle.getStyle().setTextHeightRatio(1),
+      );
 
       // 7. Commit & execute — result fires via PrintResult.onResult
       await lineApi.printTrans(_AppPrintResult((code, msg) {

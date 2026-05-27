@@ -6,11 +6,22 @@ class ScanPrintProvider extends ChangeNotifier {
   String _lengthInput = '';
   bool _printerReady = false;
   bool _isPrinting = false;
+  
+  // NEW State for Price Extraction
+  double _absolutePrice = 0.0;
+  bool _isOcrProcessing = false;
 
   // ─── Getters ──────────────────────────────────────────────────────────────
   String get barcodeResult => _barcodeResult;
   bool get printerReady => _printerReady;
   bool get isPrinting => _isPrinting;
+  
+  // NEW Getters
+  double get absolutePrice => _absolutePrice;
+  bool get isOcrProcessing => _isOcrProcessing;
+  
+  /// Dynamic Total Price calculation: scanned absolute price * user input
+  double get totalPrice => _absolutePrice * lengthValue;
 
   /// Formats the raw digit string into a display like "0.00" or "12.50"
   String get displayLength {
@@ -39,15 +50,25 @@ class ScanPrintProvider extends ChangeNotifier {
   /// Whether both barcode and a valid length > 0 are ready
   bool get canPrint => _barcodeResult.isNotEmpty && lengthValue > 0;
 
-  /// Final string to be encoded as QR: "BARCODE|LENGTH"
+  /// Final string to be encoded as QR: "BARCODE%LENGTH" (separated by '%')
   String get mergedResult {
     final len = lengthValue.toStringAsFixed(2);
-    return '$_barcodeResult|$len';
+    return '$_barcodeResult%$len';
   }
 
   // ─── Scanner ──────────────────────────────────────────────────────────────
   void setBarcodeResult(String barcode) {
     _barcodeResult = barcode.trim();
+    notifyListeners();
+  }
+
+  void setAbsolutePrice(double price) {
+    _absolutePrice = price;
+    notifyListeners();
+  }
+
+  void setOcrProcessing(bool processing) {
+    _isOcrProcessing = processing;
     notifyListeners();
   }
 
@@ -113,7 +134,9 @@ class ScanPrintProvider extends ChangeNotifier {
   void reset() {
     _barcodeResult = '';
     _lengthInput = '';
+    _absolutePrice = 0.0;
     _isPrinting = false;
+    _isOcrProcessing = false;
     notifyListeners();
   }
 }

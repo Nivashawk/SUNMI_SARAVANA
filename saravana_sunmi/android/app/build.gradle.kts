@@ -42,3 +42,9 @@ android {
 flutter {
     source = "../.."
 }
+
+dependencies {
+    // Force bundled offline Latin-script text recognition model
+    implementation("com.google.mlkit:text-recognition:16.0.1")
+}
+
