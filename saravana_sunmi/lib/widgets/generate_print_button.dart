@@ -4,6 +4,7 @@ import '../providers/scan_print_provider.dart';
 
 /// The "Generate & Print" CTA button.
 /// Disabled when [ScanPrintProvider.canPrint] is false or while printing.
+/// Shows a distinct "Printer Offline" state when the printer is not ready.
 class GeneratePrintButton extends StatelessWidget {
   final VoidCallback onPressed;
 
@@ -12,7 +13,15 @@ class GeneratePrintButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<ScanPrintProvider>();
+    final printerReady = provider.printerReady;
     final enabled = provider.canPrint && !provider.isPrinting;
+
+    // Determine colours based on state
+    final Color bgColor = !printerReady
+        ? const Color(0xFFB71C1C)   // deep red — printer offline
+        : enabled
+            ? const Color(0xFF1976D2) // blue — ready to print
+            : const Color(0xFFBDBDBD); // grey — waiting for input
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -31,15 +40,21 @@ class GeneratePrintButton extends StatelessWidget {
                       offset: const Offset(0, 4),
                     ),
                   ]
-                : [],
+                : !printerReady
+                    ? [
+                        BoxShadow(
+                          color: const Color(0xFFB71C1C).withValues(alpha: 0.25),
+                          blurRadius: 8,
+                          offset: const Offset(0, 3),
+                        ),
+                      ]
+                    : [],
           ),
           child: ElevatedButton.icon(
             onPressed: enabled ? onPressed : null,
             style: ElevatedButton.styleFrom(
-              backgroundColor: enabled
-                  ? const Color(0xFF1976D2)
-                  : const Color(0xFFBDBDBD),
-              disabledBackgroundColor: const Color(0xFFBDBDBD),
+              backgroundColor: bgColor,
+              disabledBackgroundColor: bgColor,
               foregroundColor: Colors.white,
               disabledForegroundColor: Colors.white70,
               elevation: 0,
@@ -56,9 +71,18 @@ class GeneratePrintButton extends StatelessWidget {
                       color: Colors.white,
                     ),
                   )
-                : const Icon(Icons.print_rounded, size: 22),
+                : Icon(
+                    !printerReady
+                        ? Icons.wifi_off_rounded     // offline icon
+                        : Icons.print_rounded,        // normal print icon
+                    size: 22,
+                  ),
             label: Text(
-              provider.isPrinting ? 'Printing...' : 'Generate & Print',
+              provider.isPrinting
+                  ? 'Printing...'
+                  : !printerReady
+                      ? 'Printer Offline'
+                      : 'Generate & Print',
               style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,

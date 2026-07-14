@@ -91,7 +91,7 @@ class PrinterService {
       await lineApi.printText(
         data,
         TextStyle.getStyle()
-            .setTextSize(24)
+            .setTextSize(30)
             .enableBold(true),
       );
 
@@ -105,7 +105,7 @@ class PrinterService {
         await lineApi.printText(
           'Price:$priceStr Total Rs.$totalStr',
           TextStyle.getStyle()
-              .setTextSize(24)
+              .setTextSize(30)
               .enableBold(true)
               .setAlign(printer.Align.LEFT),
         );

@@ -62,18 +62,19 @@ class _HomeScreenState extends State<HomeScreen> {
     final provider = context.read<ScanPrintProvider>();
     
     // Trigger camera capture
+    // Use high resolution so ML Kit can clearly read small sticker fonts.
     try {
       final pickedFile = await _imagePicker.pickImage(
         source: ImageSource.camera,
-        maxWidth: 1200,
-        maxHeight: 1200,
-        imageQuality: 85,
+        maxWidth: 2000,
+        maxHeight: 2000,
+        imageQuality: 100,
       );
 
       if (pickedFile == null) return;
 
       provider.setOcrProcessing(true);
-      _showSnackBar('Processing label with offline OCR...', isError: false);
+      _showSnackBar('Processing label with offline OCR…', isError: false);
 
       final result = await _ocrService.extractLabelData(File(pickedFile.path));
       if (result != null) {
@@ -84,8 +85,11 @@ class _HomeScreenState extends State<HomeScreen> {
           isError: false,
         );
       } else {
+        // Give a targeted hint so the user knows what was missing.
         _showSnackBar(
-          'Failed to extract barcode & price. Please ensure the label is well-lit and clear.',
+          'Could not read the label clearly.\n'
+          'Tip: Hold the camera steady, ensure good lighting, and frame the\n'
+          'barcode number line and price inside the viewfinder.',
           isError: true,
         );
       }

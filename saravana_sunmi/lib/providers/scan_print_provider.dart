@@ -47,8 +47,8 @@ class ScanPrintProvider extends ChangeNotifier {
     return double.tryParse(_lengthInput) ?? 0.0;
   }
 
-  /// Whether both barcode and a valid length > 0 are ready
-  bool get canPrint => _barcodeResult.isNotEmpty && lengthValue > 0;
+  /// Whether barcode, length > 0, AND printer is ready
+  bool get canPrint => _barcodeResult.isNotEmpty && lengthValue > 0 && _printerReady;
 
   /// Final string to be encoded as QR: "BARCODE%LENGTH" (separated by '%')
   String get mergedResult {
@@ -57,8 +57,19 @@ class ScanPrintProvider extends ChangeNotifier {
   }
 
   // ─── Scanner ──────────────────────────────────────────────────────────────
+
+  /// Stores only the Batch Number from the raw barcode.
+  /// Barcode format: "1606152827$#000005"
+  ///   - Batch Number : everything BEFORE the "$#" delimiter
+  ///   - Delimiter    : "$#"
+  ///   - Serial Number: everything after "$#" (ignored)
+  /// If no delimiter is found, the full value is stored as-is.
   void setBarcodeResult(String barcode) {
-    _barcodeResult = barcode.trim();
+    final raw = barcode.trim();
+    final delimiterIndex = raw.indexOf('\$#');
+    _barcodeResult = delimiterIndex != -1
+        ? raw.substring(0, delimiterIndex)
+        : raw;
     notifyListeners();
   }
 
