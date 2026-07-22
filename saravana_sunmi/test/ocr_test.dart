@@ -31,7 +31,7 @@ void main() {
       expect(provider.totalPrice, 0.0);
     });
 
-    test('QR Code content formatting with % separator', () {
+    test('QR Code content formatting with ~ separator', () {
       final provider = ScanPrintProvider();
       
       provider.setBarcodeResult('1603099558');
@@ -43,8 +43,8 @@ void main() {
       provider.appendDigit('5');
       provider.appendDigit('0');
       
-      // Expected output format: [barcode]%[user input] -> "1603099558%12.50"
-      expect(provider.mergedResult, '1603099558%12.50');
+      // Expected output format: [barcode]~[user input] -> "1603099558~12.50"
+      expect(provider.mergedResult, '1603099558~12.50');
     });
 
     test('reset clears absolute price and ocr states', () {

@@ -3,9 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import '../providers/scan_print_provider.dart';
-import '../services/scanner_service.dart';
 import '../services/printer_service.dart';
 import '../services/price_ocr_service.dart';
+import '../services/api_service.dart';
 import '../widgets/header_bar.dart';
 import '../widgets/length_display.dart';
 import '../widgets/numeric_keypad.dart';
@@ -19,7 +19,6 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final _scannerService = ScannerService();
   final _printerService = PrinterService();
   final _ocrService = PriceOcrService();
   final _imagePicker = ImagePicker();
@@ -38,16 +37,186 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
-  /// Initialize scanner listener and check printer status on startup.
+  /// Verifies the credit status. Returns true if credit is valid and user can proceed.
+  /// Shows a blocking dialog if credit is invalid with a Retry button.
+  /// Shows a warning dialog if credit is low and then returns true.
+  Future<bool> _verifyCreditAndProceed() async {
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const PopScope(
+        canPop: false,
+        child: AlertDialog(
+          content: Row(
+            children: [
+              CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation(Color(0xFF512DA8)),
+              ),
+              SizedBox(width: 20),
+              Text(
+                'Verifying credit status...',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    final result = await ApiService.checkCreditStatus(statusCheck: true);
+
+    if (mounted) {
+      Navigator.of(context).pop(); // Close the loading dialog
+    }
+
+    if (result['success'] == true) {
+      final bool creditStatus = result['credit_status'] ?? false;
+      final bool lowCredit = result['low_credit'] ?? false;
+
+      if (!creditStatus) {
+        // Show blocking insufficient credit dialog
+        final retry = await _showInsufficientCreditDialog();
+        if (retry) {
+          return _verifyCreditAndProceed();
+        }
+        return false;
+      }
+
+      if (lowCredit) {
+        // Show non-blocking low credit alert
+        await _showLowCreditDialog();
+      }
+
+      return true;
+    } else {
+      // Network error or server error
+      final retry = await _showErrorDialog(result['message'] ?? 'Could not connect to server.');
+      if (retry) {
+        return _verifyCreditAndProceed();
+      }
+      return false;
+    }
+  }
+
+  Future<bool> _showInsufficientCreditDialog() async {
+    final result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Color(0xFFD32F2F), size: 28),
+            SizedBox(width: 8),
+            Text(
+              'Insufficient Credit',
+              style: TextStyle(fontWeight: FontWeight.w900),
+            ),
+          ],
+        ),
+        content: const Text(
+          'You do not have enough credit to continue. Please recharge your account.',
+          style: TextStyle(fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF512DA8),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text('Retry', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+    return result ?? false;
+  }
+
+  Future<void> _showLowCreditDialog() async {
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.battery_alert_rounded, color: Colors.orange, size: 28),
+            SizedBox(width: 8),
+            Text(
+              'Low Credit Alert',
+              style: TextStyle(fontWeight: FontWeight.w900),
+            ),
+          ],
+        ),
+        content: const Text(
+          'Your credit balance is running low. Please top up soon to avoid interruption.',
+          style: TextStyle(fontSize: 14),
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF512DA8),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text('OK', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<bool> _showErrorDialog(String errorMsg) async {
+    final result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.error_outline_rounded, color: Color(0xFFD32F2F), size: 28),
+            SizedBox(width: 8),
+            Text(
+              'Connection Error',
+              style: TextStyle(fontWeight: FontWeight.w900),
+            ),
+          ],
+        ),
+        content: Text(
+          'Failed to check credit status:\n$errorMsg',
+          style: const TextStyle(fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF512DA8),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text('Retry', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+    return result ?? false;
+  }
+
+  /// Initialize printer status on startup.
   Future<void> _initServices() async {
     final provider = context.read<ScanPrintProvider>();
-
-    // Start scanner listener (just in case they use hardware triggers)
-    _scannerService.startListening((barcode) {
-      if (mounted) {
-        provider.setBarcodeResult(barcode);
-      }
-    });
 
     // Check printer status
     final ready = await _printerService.checkStatus();
@@ -59,6 +228,9 @@ class _HomeScreenState extends State<HomeScreen> {
   /// Called when CAMERA OCR SCAN is tapped.
   /// Launches the camera to capture a label and auto-extracts barcode/price.
   Future<void> _onOcrScanTapped() async {
+    final hasCredit = await _verifyCreditAndProceed();
+    if (!hasCredit || !mounted) return;
+
     final provider = context.read<ScanPrintProvider>();
     
     // Trigger camera capture
@@ -114,7 +286,7 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
 
-    // Build merged QR data: "BARCODE%12.50"
+    // Build merged QR data: "BARCODE~12.50"
     final qrData = provider.mergedResult;
 
     // Show printing state
@@ -133,6 +305,9 @@ class _HomeScreenState extends State<HomeScreen> {
       // Reset all state after successful print
       provider.reset();
       _showSnackBar('Printed successfully!', isError: false);
+
+      // Async background credit check call (Type 1 status_check: false)
+      ApiService.checkCreditStatus(statusCheck: false);
     } else {
       provider.setIsPrinting(false);
       _showSnackBar('Print failed. Please check the printer.', isError: true);

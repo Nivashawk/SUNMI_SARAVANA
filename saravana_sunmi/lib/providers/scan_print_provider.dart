@@ -50,10 +50,10 @@ class ScanPrintProvider extends ChangeNotifier {
   /// Whether barcode, length > 0, AND printer is ready
   bool get canPrint => _barcodeResult.isNotEmpty && lengthValue > 0 && _printerReady;
 
-  /// Final string to be encoded as QR: "BARCODE%LENGTH" (separated by '%')
+  /// Final string to be encoded as QR: "BARCODE~LENGTH" (separated by '~')
   String get mergedResult {
     final len = lengthValue.toStringAsFixed(2);
-    return '$_barcodeResult%$len';
+    return '$_barcodeResult~$len';
   }
 
   // ─── Scanner ──────────────────────────────────────────────────────────────

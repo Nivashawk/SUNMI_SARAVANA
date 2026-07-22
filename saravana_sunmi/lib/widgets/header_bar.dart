@@ -1,10 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../providers/scan_print_provider.dart';
 
 /// Top header bar: logo + store name + printer status badge + WiFi icon.
 class HeaderBar extends StatelessWidget {
   const HeaderBar({super.key});
+
+  Future<Map<String, String?>> _getConfig() async {
+    final prefs = await SharedPreferences.getInstance();
+    return {
+      'branch': prefs.getString('branch_name'),
+      'floor': prefs.getString('floor_number'),
+    };
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -32,16 +41,40 @@ class HeaderBar extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 10),
-          // Store name
-          const Expanded(
-            child: Text(
-              'SARAVANA STORE',
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 0.5,
-                color: Color(0xFF1A1A2E),
-              ),
+          // Store name and welcome details
+          Expanded(
+            child: FutureBuilder<Map<String, String?>>(
+              future: _getConfig(),
+              builder: (context, snapshot) {
+                final branch = snapshot.data?['branch'];
+                final floor = snapshot.data?['floor'];
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      'SUPER SARAVANA STORES',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.5,
+                        color: Color(0xFF1A1A2E),
+                      ),
+                    ),
+                    // if (branch != null && floor != null) ...[
+                    //   const SizedBox(height: 2),
+                    //   Text(
+                    //     '$branch • Floor $floor',
+                    //     style: const TextStyle(
+                    //       fontSize: 10,
+                    //       fontWeight: FontWeight.bold,
+                    //       color: Color(0xFF512DA8),
+                    //     ),
+                    //   ),
+                    // ],
+                  ],
+                );
+              },
             ),
           ),
           // Printer status badge

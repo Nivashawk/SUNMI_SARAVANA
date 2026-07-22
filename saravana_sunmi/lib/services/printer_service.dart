@@ -44,6 +44,17 @@ class PrinterService {
     ]);
   }
 
+  /// Returns the raw device printer serial ID.
+  /// Trims any leading "Sunmi_" prefix if present.
+  Future<String?> getPrinterId() async {
+    if (_printer == null) await initialize();
+    final rawId = _printer?.printerId;
+    if (rawId != null && rawId.startsWith('Sunmi_')) {
+      return rawId.substring('Sunmi_'.length);
+    }
+    return rawId;
+  }
+
   /// Returns true if the printer is ready (Status.READY).
   Future<bool> checkStatus() async {
     if (_printer == null) await initialize();
